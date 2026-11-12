@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#131417" />
+  <meta name="description" content="Ophim sviluppa prodotti e servizi innovativi ad alto valore tecnologico, per mettere al centro le persone e facilitarne il lavoro. Il primo servizio è Ristrategy, il gestionale per gli intermediari assicurativi." />
+  <title>Ophim</title>
+  <link rel="icon" href="assets/ophim-logo-bianco.png" />
+  <style>
+    :root {
+      --fondo-centro: #1f2128;
+      --fondo: #131417;
+      --indaco: #6f52ff;
+      --indaco-chiaro: #a796ff;
+      --testo: #ffffff;
+      --testo-tenue: #a3a6b3;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(0,0,0,0); }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 50% 42%, var(--fondo-centro) 0%, var(--fondo) 65%) var(--fondo);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--testo);
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    canvas#campo {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .solo-lettori {
+      position: absolute;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    /* Ogni scena occupa tutto lo schermo: la pagina non scorre, cambia la scena attiva. */
+    .scena {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .4s ease, visibility 0s linear .4s;
+    }
+    .scena.attiva {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .7s ease .45s, visibility 0s;
+    }
+
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero img {
+      width: min(52vmin, 340px);
+      height: auto;
+      opacity: 0;
+      transition: opacity 1.1s ease;
+      filter: drop-shadow(0 0 18px rgba(111,82,255,0.35));
+      animation: respiro 5s ease-in-out infinite;
+    }
+    .hero.bianco img { opacity: 1; }
+    @keyframes respiro {
+      0%, 100% { filter: drop-shadow(0 0 14px rgba(111,82,255,0.28)); }
+      50%      { filter: drop-shadow(0 0 30px rgba(111,82,255,0.6)); }
+    }
+
+    /* Il testo bianco sta sotto il titolo fatto di particelle: l'altezza la calcola lo script. */
+    .copia {
+      position: absolute;
+      left: 50%;
+      top: var(--alto, 56vh);
+      transform: translateX(-50%);
+      width: min(44rem, 100vw - 2.5rem);
+      text-align: center;
+    }
+    .scena.attiva .copia { pointer-events: auto; }
+
+    .etichetta {
+      margin: 0 0 .9rem;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .28em;
+      text-transform: uppercase;
+      color: var(--indaco-chiaro);
+      text-shadow: 0 0 10px rgba(111,82,255,0.8);
+    }
+    .principale {
+      margin: 0;
+      font-size: clamp(1.05rem, .8rem + 1.1vw, 1.55rem);
+      font-weight: 500;
+      line-height: 1.35;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    .secondario {
+      margin: .9rem auto 0;
+      max-width: 38rem;
+      font-size: clamp(.86rem, .76rem + .4vw, 1rem);
+      line-height: 1.55;
+      color: var(--testo-tenue);
+      text-wrap: pretty;
+    }
+    .ambiti {
+      list-style: none;
+      margin: 1.3rem 0 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: .5rem .7rem;
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .ambiti li {
+      padding: .35rem .7rem;
+      border: 1px solid rgba(111,82,255,0.55);
+      color: var(--testo);
+      box-shadow: 0 0 14px rgba(111,82,255,0.18), inset 0 0 10px rgba(111,82,255,0.12);
+      clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    }
+    .invito {
+      display: inline-block;
+      margin-top: 1.5rem;
+      padding: .8rem 1.5rem;
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--testo);
+      background: var(--indaco);
+      box-shadow: 0 0 26px rgba(111,82,255,0.55);
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+      transition: background .2s, box-shadow .2s;
+    }
+    .invito:hover, .invito:focus-visible { background: #8469ff; box-shadow: 0 0 40px rgba(111,82,255,0.9); }
+    .legale {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 1.1rem;
+      margin: 0;
+      padding: 0 3rem;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: .62rem;
+      line-height: 1.5;
+      letter-spacing: .06em;
+      color: #747786;
+    }
+
+    /* Comandi fissi: marchio, contatore, tappe, invito a scorrere. */
+    .marchio {
+      position: fixed;
+      top: 1.2rem; left: 1.4rem;
+      padding: .3rem .2rem;
+      background: none; border: 0;
+      font: 600 .85rem/1 "Segoe UI", system-ui, sans-serif;
+      letter-spacing: .42em;
+      color: var(--testo);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .5s;
+    }
+    body.dentro .marchio { opacity: .9; pointer-events: auto; }
+
+    .contatore {
+      position: fixed;
+      top: 1.5rem; right: 1.4rem;
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .2em;
+      color: var(--indaco-chiaro);
+      text-shadow: 0 0 8px rgba(111,82,255,0.7);
+      opacity: 0;
+      transition: opacity .5s;
+    }
+    body.dentro .contatore { opacity: 1; }
+
+    .tappe {
+      position: fixed;
+      right: 1.1rem; top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+    }
+    .tappe button {
+      width: 22px; height: 22px;
+      padding: 0;
+      background: none; border: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .tappe button::before {
+      content: "";
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #50536180;
+      transition: background .3s, box-shadow .3s, transform .3s;
+    }
+    .tappe button:hover::before { background: var(--indaco-chiaro); }
+    .tappe button[aria-current="true"]::before {
+      background: var(--indaco-chiaro);
+      box-shadow: 0 0 10px var(--indaco), 0 0 22px var(--indaco);
+      transform: scale(1.5);
+    }
+
+    .scorri {
+      position: fixed;
+      left: 50%; bottom: 1.4rem;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .5rem;
+      padding: .4rem .8rem;
+      background: none; border: 0;
+      font-family: var(--mono);
+      font-size: .62rem;
+      letter-spacing: .34em;
+      text-transform: uppercase;
+      color: var(--testo-tenue);
+      cursor: pointer;
+      transition: opacity .5s;
+    }
+    .scorri::after {
+      content: "";
+      width: 1px; height: 26px;
+      background: linear-gradient(var(--indaco-chiaro), transparent);
+      animation: goccia 2s ease-in-out infinite;
+      transform-origin: top;
+    }
+    @keyframes goccia {
+      0% { transform: scaleY(0); opacity: 1; }
+      60% { transform: scaleY(1); opacity: 1; }
+      100% { transform: scaleY(1); opacity: 0; }
+    }
+    body.fine .scorri, body.dentro.basso .scorri { opacity: 0; pointer-events: none; }
+
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--indaco-chiaro); outline-offset: 3px; }
+
+    .aura {
+      position: fixed;
+      left: 0; top: 0;
+      width: 110px; height: 110px;
+      margin: -55px 0 0 -55px;
+      border-radius: 50%;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      background: radial-gradient(circle, rgba(111,82,255,0.22) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(10px);
+      opacity: 0;
+      transition: opacity .2s linear;
+    }
+
+    @media (max-width: 640px) {
+      .tappe { right: .25rem; }
+      .copia { width: calc(100vw - 4rem); }
+      .legale { padding: 0 1.2rem; font-size: .56rem; bottom: .7rem; }
+      .ambiti { margin-top: 1rem; }
+    }
+    @media (max-height: 560px) {
+      .secondario { display: none; }
+      .legale { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero img, .scorri::after { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="campo" aria-hidden="true"></canvas>
+
+  <main>
+    <section class="scena hero attiva" data-nome="Ophim">
+      <h1 class="solo-lettori">Ophim</h1>
+      <img src="assets/ophim-logo-bianco.png" alt="Logo Ophim" width="400" height="400" />
+    </section>
+
+    <section class="scena" data-nome="Mission">
+      <h2 class="solo-lettori">Mission</h2>
+      <div class="copia">
+        <p class="etichetta">Perché esistiamo</p>
+        <p class="principale">Sviluppiamo prodotti e servizi innovativi ad alto valore tecnologico.</p>
+        <p class="secondario">Ricerca, progettazione e sviluppo di soluzioni digitali che rendono semplice ciò che è complesso, in ogni settore in cui la tecnologia può fare la differenza.</p>
+        <ul class="ambiti" aria-label="Ambiti">
+          <li>Software</li>
+          <li>Intelligenza artificiale</li>
+          <li>Dati</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="scena" data-nome="Vision">
+      <h2 class="solo-lettori">Vision</h2>
+      <div class="copia">
+        <p class="etichetta">Dove vogliamo arrivare</p>
+        <p class="principale">Mettere al centro le persone, dotandole di strumenti innovativi e tecnologici che ne facilitano il lavoro.</p>
+        <p class="secondario">La tecnologia non prende il posto di chi lavora: gli toglie peso, gli restituisce tempo e lo aiuta a fare meglio ciò che sa fare.</p>
+      </div>
+    </section>
+
+    <section class="scena" data-nome="Ristrategy">
+      <h2 class="solo-lettori">Ristrategy</h2>
+      <div class="copia">
+        <p class="etichetta">Il nostro primo servizio</p>
+        <p class="principale">Il gestionale per gli intermediari assicurativi: agenti, broker, sub-agenti e le loro squadre.</p>
+        <p class="secondario">Portafoglio clienti e polizze di più compagnie, check-up consulenziale con analisi dei bisogni, scadenze, provvigioni e adeguata verifica: tutto in un unico ambiente.</p>
+        <ul class="ambiti" aria-label="Ambito">
+          <li>Insurtech</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="scena" data-nome="Crea, ordina, gestisci, vendi">
+      <h2 class="solo-lettori">Crea, ordina, gestisci, vendi</h2>
+      <div class="copia">
+        <p class="etichetta">Ristrategy, con Emme</p>
+        <p class="principale">Dentro c'è Emme, l'assistente che risponde sui prodotti delle compagnie e indica sempre il documento da cui prende la risposta.</p>
+        <a class="invito" href="https://ristrategy.it" target="_blank" rel="noopener">Scopri Ristrategy</a>
+      </div>
+      <p class="legale">OPHIM S.r.l. · Startup innovativa · Via Edmondo De Amicis 138, Pescara · P.IVA 02476450685</p>
+    </section>
+  </main>
+
+  <button class="marchio" id="marchio" type="button" aria-label="Torna all'inizio">OPHIM</button>
+  <div class="contatore" id="contatore" aria-hidden="true"></div>
+  <nav class="tappe" id="tappe" aria-label="Sezioni"></nav>
+  <button class="scorri" id="scorri" type="button">Scorri</button>
+  <div class="aura" id="aura"></div>
+
+  <script>
+    // ------------------------------------------------------------------------------------------------
+    // Effetto CarbonSaver, in indaco. Due famiglie di particelle sullo stesso canvas:
+    //  - le "libere" sono quelle di CarbonSaver, identiche nel moto: vagano sempre, in ogni scena;
+    //  - le "formanti" sono invisibili nella home; a ogni scena si accendono e vanno a comporre titolo e
+    //    icona, poi si dissolvono e rinascono per comporre la scena successiva.
+    // La pagina non scorre mai: rotella, tocco e tastiera cambiano soltanto la scena attiva.
+    // ------------------------------------------------------------------------------------------------
+    const canvas = document.getElementById("campo");
+    const ctx = canvas.getContext("2d");
+    const motoRidotto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let W = 0, H = 0;
+    function misura() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    misura();
+
+    // Il pallino: nucleo quasi bianco, alone indaco. Disegnato una volta sola e poi stampato.
+    const pallino = document.createElement("canvas");
+    pallino.width = pallino.height = 64;
+    {
+      const g = pallino.getContext("2d");
+      const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, "rgba(232,226,255,1)");
+      grad.addColorStop(0.16, "rgba(150,124,255,0.95)");
+      grad.addColorStop(0.42, "rgba(105,76,255,0.38)");
+      grad.addColorStop(1, "rgba(90,60,255,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 64, 64);
+    }
+
+    // Lo stesso pallino in bianco: nella home i pallini ci sfumano man mano che prendono posto nel logo.
+    const pallinoBianco = document.createElement("canvas");
+    pallinoBianco.width = pallinoBianco.height = 64;
+    {
+      const g = pallinoBianco.getContext("2d");
+      const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, "rgba(255,255,255,1)");
+      grad.addColorStop(0.2, "rgba(255,255,255,0.92)");
+      grad.addColorStop(0.45, "rgba(226,220,255,0.3)");
+      grad.addColorStop(1, "rgba(200,190,255,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 64, 64);
+    }
+
+    // ---------------------------------------------------------------- puntatore (tocco o mouse)
+    const puntatore = { x: W / 2, y: H / 2, attivo: false };
+    const aura = document.getElementById("aura");
+    let auraX = W / 2, auraY = H / 2;
+
+    function puntaA(x, y) {
+      if (!puntatore.attivo) { auraX = x; auraY = y; }
+      puntatore.x = x;
+      puntatore.y = y;
+      puntatore.attivo = true;
+      aura.style.opacity = 1;
+    }
+    function lasciaPuntatore() {
+      puntatore.attivo = false;
+      aura.style.opacity = 0;
+    }
+    window.addEventListener("mousemove", (e) => puntaA(e.clientX, e.clientY));
+    document.addEventListener("mouseleave", lasciaPuntatore);
+
+    // ---------------------------------------------------------------- particelle libere (CarbonSaver)
+    // Velocità e forze sono in pixel per fotogramma a 60 fps; dt le adatta al tempo vero.
+    const DISSOLVENZA = 45;
+    const BORDO = 12;
+
+    function rientra(v, lato) {
+      const tratto = lato + 2 * BORDO;
+      if (v < -BORDO) return v + tratto * Math.ceil((-BORDO - v) / tratto);
+      if (v > lato + BORDO) return v - tratto * Math.ceil((v - lato - BORDO) / tratto);
+      return v;
+    }
+
+    class Libera {
+      constructor() { this.rinasci(true); }
+
+      rinasci(iniziale = false) {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        const angolo = Math.random() * Math.PI * 2;
+        const passo = 0.2 + Math.random() * 0.5;
+        this.vx = Math.cos(angolo) * passo;
+        this.vy = Math.sin(angolo) * passo;
+        this.raggio = 0.8 + Math.random() * 1.8;
+        this.vitaMax = 500 + Math.random() * 500;
+        this.vita = iniziale ? Math.random() * this.vitaMax : 0;
+        this.scia = [];
+      }
+
+      get alfa() {
+        return Math.max(0, Math.min(1, this.vita / DISSOLVENZA, (this.vitaMax - this.vita) / DISSOLVENZA));
+      }
+
+      passo(tempo, dt) {
+        this.vita += dt;
+        if (this.vita > this.vitaMax) { this.rinasci(); return; }
+
+        if (puntatore.attivo) {
+          const dx = puntatore.x - this.x, dy = puntatore.y - this.y;
+          const d2 = dx * dx + dy * dy, r = 140;
+          if (d2 < r * r) {
+            const d = Math.sqrt(d2) || 1;
+            const f = (1 - d / r) * 0.5 * dt;
+            this.vx += (dx / d) * f * 0.12 + (-dy / d) * f * 0.45;
+            this.vy += (dy / d) * f * 0.12 + (dx / d) * f * 0.45;
+          }
+        }
+
+        this.vx += Math.sin(this.y * 0.0006 + tempo * 0.00025) * 0.003 * dt;
+        this.vy += Math.cos(this.x * 0.0006 + tempo * 0.00025) * 0.003 * dt;
+        const freno = Math.pow(0.99, dt);
+        this.vx *= freno;
+        this.vy *= freno;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        const x = rientra(this.x, W), y = rientra(this.y, H);
+        if (x !== this.x || y !== this.y) { this.x = x; this.y = y; this.scia = []; }
+
+        this.scia.push({ x: this.x, y: this.y });
+        if (this.scia.length > 8) this.scia.shift();
+      }
+
+      disegna() {
+        const a = this.alfa;
+        if (a <= 0) return;
+        if (this.scia.length > 1) {
+          ctx.globalAlpha = a;
+          ctx.beginPath();
+          ctx.moveTo(this.scia[0].x, this.scia[0].y);
+          for (let i = 1; i < this.scia.length; i++) ctx.lineTo(this.scia[i].x, this.scia[i].y);
+          ctx.lineWidth = this.raggio;
+          ctx.strokeStyle = "rgba(124,96,255,0.22)";
+          ctx.stroke();
+        }
+        ctx.globalAlpha = a * 0.95;
+        const r = this.raggio * 4;
+        ctx.drawImage(pallino, this.x - r, this.y - r, r * 2, r * 2);
+      }
+    }
+
+    const libere = [];
+    for (let i = 0; i < 70; i++) libere.push(new Libera());
+
+    // ---------------------------------------------------------------- particelle formanti
+    const MAX_FORMANTI = 3400;
+    const formanti = [];
+    for (let i = 0; i < MAX_FORMANTI; i++) {
+      formanti.push({
+        x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0,
+        raggio: 0.75 + Math.random() * 0.6,
+        alfa: 0, alfaMeta: 0, legata: false, attesa: 0, bianco: 0,
+        fase: Math.random() * Math.PI * 2,
+      });
+    }
+
+    // ---------------------------------------------------------------- scene
+    const SCENE = [
+      { sagoma: "ophim" },
+      { titolo: () => ["MISSION"], icona: "scudo" },
+      { titolo: () => ["VISION"], icona: "occhio" },
+      { sagoma: "ristrategy" },
+      { titolo: () => (W >= 1200 ? ["CREA ORDINA GESTISCI VENDI"]
+          : W >= 700 ? ["CREA ORDINA", "GESTISCI VENDI"]
+          : ["CREA", "ORDINA", "GESTISCI", "VENDI"]) },
+    ];
+    const sezioni = [...document.querySelectorAll(".scena")];
+
+    // I due loghi (bianchi su trasparente) servono da sagoma: i pallini ne occupano i pixel opachi.
+    const immagini = { ophim: new Image(), ristrategy: new Image() };
+    const hero = sezioni[0];
+    const logoHero = hero.querySelector("img");
+    function carica(img, src) {
+      return new Promise((fatto) => {
+        img.onload = img.onerror = () => fatto();
+        img.src = src;
+      });
+    }
+
+    const bozza = document.createElement("canvas");
+    const b = bozza.getContext("2d", { willReadFrequently: true });
+
+    function disegnaIcona(nome, cx, cy, S) {
+      b.lineWidth = S * 0.075;
+      b.lineJoin = "round";
+      b.lineCap = "round";
+      b.beginPath();
+      if (nome === "scudo") {
+        b.moveTo(cx, cy - S * 0.5);
+        b.lineTo(cx + S * 0.4, cy - S * 0.34);
+        b.lineTo(cx + S * 0.4, cy + S * 0.02);
+        b.quadraticCurveTo(cx + S * 0.38, cy + S * 0.36, cx, cy + S * 0.5);
+        b.quadraticCurveTo(cx - S * 0.38, cy + S * 0.36, cx - S * 0.4, cy + S * 0.02);
+        b.lineTo(cx - S * 0.4, cy - S * 0.34);
+        b.closePath();
+        b.moveTo(cx - S * 0.17, cy + S * 0.01);
+        b.lineTo(cx - S * 0.04, cy + S * 0.14);
+        b.lineTo(cx + S * 0.19, cy - S * 0.13);
+        b.stroke();
+      } else if (nome === "occhio") {
+        b.moveTo(cx - S * 0.62, cy);
+        b.quadraticCurveTo(cx, cy - S * 0.62, cx + S * 0.62, cy);
+        b.quadraticCurveTo(cx, cy + S * 0.62, cx - S * 0.62, cy);
+        b.closePath();
+        b.moveTo(cx + S * 0.17, cy);
+        b.arc(cx, cy, S * 0.17, 0, Math.PI * 2);
+        b.stroke();
+        b.beginPath();
+        b.arc(cx, cy, S * 0.055, 0, Math.PI * 2);
+        b.fill();
+      }
+    }
+
+    function larghezzaRiga(riga, corpo, spazio) {
+      let l = 0;
+      for (const ch of riga) l += b.measureText(ch).width + spazio;
+      return l - spazio;
+    }
+
+    // Disegna icona e titolo su un canvas nascosto e ne ricava i punti che le particelle devono occupare.
+    function disponi(indice) {
+      const scena = SCENE[indice];
+
+      bozza.width = W;
+      bozza.height = H;
+      b.clearRect(0, 0, W, H);
+      b.fillStyle = "#fff";
+      b.strokeStyle = "#fff";
+
+      const basso = H < 560;
+      let y = H * (basso ? 0.11 : 0.12);
+      let passo = W < 700 ? 2.5 : 3;
+      let alto = 0;
+      let occhioQui = null;
+
+      if (scena.sagoma) {
+        const im = immagini[scena.sagoma];
+        if (!im.naturalWidth) return { punti: [], alto: H * 0.42, passo };
+        if (scena.sagoma === "ophim") {
+          // esattamente sopra il logo bianco della home, che poi prende il posto dei pallini
+          const r = logoHero.getBoundingClientRect();
+          b.drawImage(im, r.left, r.top, r.width, r.height);
+          passo = 1.8;
+        } else {
+          const larga = Math.min(W * 0.84, 800);
+          const alta = larga * im.naturalHeight / im.naturalWidth;
+          y = H * (basso ? 0.14 : 0.25);
+          b.drawImage(im, W / 2 - larga / 2, y, larga, alta);
+          alto = y + alta + Math.max(22, alta * 0.4);
+          passo = W < 700 ? 1.8 : 2.5;
+        }
+      } else {
+      if (scena.icona && !basso) {
+        const S = Math.max(80, Math.min(170, Math.min(W, H) * 0.19));
+        disegnaIcona(scena.icona, W / 2, y + S * 0.5, S);
+        if (scena.icona === "occhio") occhioQui = { x: W / 2, y: y + S * 0.5, S };
+        y += S + H * 0.045;
+      } else if (!scena.icona) {
+        y = H * (basso ? 0.14 : 0.26);
+      }
+
+      const righe = scena.titolo();
+      let corpo = Math.min(H * (basso ? 0.16 : 0.125), 140);
+      const fonte = (c) => `700 ${c}px "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif`;
+      b.font = fonte(corpo);
+      const massima = Math.min(W * 0.84, 1180);
+      let piuLunga = 0;
+      for (const r of righe) piuLunga = Math.max(piuLunga, larghezzaRiga(r, corpo, corpo * 0.14));
+      if (piuLunga > massima) corpo *= massima / piuLunga;
+      b.font = fonte(corpo);
+      b.textBaseline = "middle";
+      const spazio = corpo * 0.14;
+
+      for (const r of righe) {
+        let x = W / 2 - larghezzaRiga(r, corpo, spazio) / 2;
+        for (const ch of r) {
+          b.fillText(ch, x, y + corpo * 0.5);
+          x += b.measureText(ch).width + spazio;
+        }
+        y += corpo * 1.18;
+      }
+      alto = y + corpo * 0.12;
+      }
+
+      // campionamento: si allarga il passo finché i punti stanno nel numero di particelle disponibili
+      let dati;
+      try {
+        dati = b.getImageData(0, 0, W, H).data;
+      } catch (e) {
+        return { punti: [], alto, passo };   // pagina aperta da file locale: le immagini non si possono leggere
+      }
+      const tetto = W < 700 ? 1900 : MAX_FORMANTI;
+      let punti = [];
+      for (; passo < 9; passo += 0.5) {
+        punti = [];
+        for (let py = passo / 2; py < H; py += passo) {
+          for (let px = passo / 2; px < W; px += passo) {
+            if (dati[((py | 0) * W + (px | 0)) * 4 + 3] > 128) punti.push({ x: px, y: py });
+          }
+        }
+        if (punti.length <= tetto) break;
+      }
+      if (punti.length > tetto) punti.length = tetto;
+      for (let i = punti.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [punti[i], punti[j]] = [punti[j], punti[i]];
+      }
+      // i pallini di iride e pupilla sono quelli che poi seguono il puntatore
+      if (occhioQui) {
+        const r2 = Math.pow(occhioQui.S * 0.215, 2);
+        for (const q of punti) {
+          const dx = q.x - occhioQui.x, dy = q.y - occhioQui.y;
+          q.iride = dx * dx + dy * dy <= r2;
+        }
+      }
+      return { punti, alto, passo, occhio: occhioQui };
+    }
+
+    // Assegna i punti alle particelle. I pallini non spariscono mai: da dove si trovano vanno a occupare
+    // la figura nuova. Se la figura ne chiede di più, i nuovi si staccano da quelli già accesi; se ne chiede
+    // di meno, quelli in più confluiscono nella figura e si spengono. Solo all'ingresso in pagina ("sparse")
+    // partono sparsi per tutto lo schermo.
+    let timerBianco = 0;
+    let occhio = null;              // centro e misura dell'occhio di Vision, quando è in scena
+    let sguardoX = 0, sguardoY = 0; // di quanto iride e pupilla sono spostate verso il puntatore
+    function componi(indice, sparse) {
+      const { punti, alto, passo, occhio: occhioNuovo } = disponi(indice);
+      occhio = occhioNuovo || null;
+      alone =Math.max(2.2, passo * 1.05);   // pallini più fitti hanno un alone più piccolo, così la figura resta leggibile
+      const copia = sezioni[indice].querySelector(".copia");
+      if (copia) copia.style.setProperty("--alto", Math.round(alto) + "px");
+
+      const accese = formanti.filter((p) => p.legata && !p.spegni);
+      for (let i = 0; i < formanti.length; i++) {
+        const p = formanti[i];
+        if (i < punti.length) {
+          if (!p.legata || p.spegni) {
+            const madre = !sparse && accese.length ? accese[(Math.random() * accese.length) | 0] : null;
+            if (madre) {
+              p.x = madre.x; p.y = madre.y; p.vx = madre.vx; p.vy = madre.vy;
+            } else {
+              p.x = Math.random() * W; p.y = Math.random() * H; p.vx = p.vy = 0;
+            }
+            p.tx = p.x; p.ty = p.y;
+            p.alfa = 0;
+          }
+          p.legata = true;
+          p.spegni = false;
+          p.iride = !!punti[i].iride;
+          p.nx = punti[i].x;
+          p.ny = punti[i].y;
+          p.alfaMeta = 0.55 + Math.random() * 0.45;
+        } else if (p.legata && !p.spegni && punti.length) {
+          const q = punti[(Math.random() * punti.length) | 0];
+          p.nx = q.x; p.ny = q.y;
+          p.iride = !!q.iride;
+          p.spegni = true;
+          p.alfaMeta = 0;
+        } else if (!p.spegni) {
+          p.legata = false;
+          p.alfaMeta = 0;
+          continue;
+        } else {
+          continue;
+        }
+        if (motoRidotto) {
+          p.x = p.tx = p.nx; p.y = p.ty = p.ny; p.vx = p.vy = 0;
+          p.inArrivo = false;
+        } else {
+          p.inArrivo = true;
+          p.attesa = Math.random() * (sparse ? 50 : 24);   // partenze scaglionate: il riordino sembra un'onda
+        }
+      }
+
+      // nella home i pallini compongono il logo, poi il logo bianco prende il loro posto
+      clearTimeout(timerBianco);
+      if (indice === 0) {
+        const giaBianco = hero.classList.contains("bianco");
+        const sbianca = () => {
+          if (corrente !== 0) return;
+          hero.classList.add("bianco");
+          for (const p of formanti) if (p.legata) p.alfaMeta = 0;
+        };
+        if (!punti.length || motoRidotto || giaBianco) sbianca();
+        else timerBianco = setTimeout(sbianca, sparse ? 4200 : 3300);
+      } else {
+        hero.classList.remove("bianco");
+      }
+    }
+
+    // ---------------------------------------------------------------- cambio di scena
+    let corrente = 0;
+    let alone = 3.2;
+    let inCambio = false;
+    let sbloccoRotella = 0;
+    let ultimaRotella = 0;
+    let gestoUsato = false;
+    const contatore = document.getElementById("contatore");
+    const tappe = document.getElementById("tappe");
+
+    sezioni.forEach((s, i) => {
+      const bt = document.createElement("button");
+      bt.type = "button";
+      bt.setAttribute("aria-label", s.dataset.nome);
+      bt.addEventListener("click", () => vai(i));
+      tappe.appendChild(bt);
+    });
+
+    function aggiornaComandi() {
+      document.body.classList.toggle("dentro", corrente > 0);
+      document.body.classList.toggle("fine", corrente === SCENE.length - 1);
+      document.body.classList.toggle("basso", H < 640);
+      contatore.textContent = corrente > 0
+        ? String(corrente).padStart(2, "0") + " / " + String(SCENE.length - 1).padStart(2, "0")
+        : "";
+      [...tappe.children].forEach((bt, i) => bt.setAttribute("aria-current", i === corrente ? "true" : "false"));
+      sezioni.forEach((s, i) => {
+        s.classList.toggle("attiva", i === corrente);
+        s.setAttribute("aria-hidden", i === corrente ? "false" : "true");
+      });
+    }
+
+    function vai(indice) {
+      indice = Math.max(0, Math.min(SCENE.length - 1, indice));
+      if (indice === corrente || inCambio) return;
+      inCambio = true;
+      corrente = indice;
+      componi(corrente, false);
+      aggiornaComandi();
+      setTimeout(() => { inCambio = false; }, 900);
+    }
+    const avanti = () => vai(corrente + 1);
+    const indietro = () => vai(corrente - 1);
+
+    window.addEventListener("wheel", (e) => {
+      // Una scorsa è un solo gesto, per quanto lunga: rotelle fluide e trackpad continuano a mandare eventi
+      // per inerzia anche per un paio di secondi. Il gesto finisce quando gli eventi tacciono per un attimo,
+      // e ogni gesto fa avanzare di una scena sola.
+      const ora = performance.now();
+      if (ora - ultimaRotella > 220) gestoUsato = false;
+      ultimaRotella = ora;
+      if (gestoUsato || Math.abs(e.deltaY) < 4 || ora < sbloccoRotella) return;
+      gestoUsato = true;
+      sbloccoRotella = ora + 700;
+      if (e.deltaY > 0) avanti(); else indietro();
+    }, { passive: true });
+
+    let toccoY = null;
+    window.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      toccoY = t.clientY;
+      puntaA(t.clientX, t.clientY);
+    }, { passive: true });
+    window.addEventListener("touchmove", (e) => {
+      const t = e.touches[0];
+      puntaA(t.clientX, t.clientY);
+    }, { passive: true });
+    window.addEventListener("touchend", (e) => {
+      lasciaPuntatore();
+      if (toccoY === null) return;
+      const dy = e.changedTouches[0].clientY - toccoY;
+      toccoY = null;
+      if (dy < -45) avanti(); else if (dy > 45) indietro();
+    }, { passive: true });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.target.closest && e.target.closest("a, button") && (e.key === " " || e.key === "Enter")) return;
+      if (["ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); avanti(); }
+      else if (["ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); indietro(); }
+      else if (e.key === "Home") vai(0);
+      else if (e.key === "End") vai(SCENE.length - 1);
+    });
+
+    document.getElementById("scorri").addEventListener("click", avanti);
+    document.getElementById("marchio").addEventListener("click", () => vai(0));
+
+    let attesaMisura = 0;
+    window.addEventListener("resize", () => {
+      misura();
+      clearTimeout(attesaMisura);
+      attesaMisura = setTimeout(() => {
+        if (!inCambio) componi(corrente, false);
+        aggiornaComandi();
+      }, 150);
+    });
+
+    aggiornaComandi();
+    Promise.all([
+      carica(immagini.ophim, "assets/ophim-logo-bianco.png"),
+      carica(immagini.ristrategy, "assets/ristrategy-logo.png"),
+    ]).then(() => componi(corrente, corrente === 0));
+
+    // ---------------------------------------------------------------- animazione
+    let tempo = 0;
+    let ultimo = performance.now();
+
+    function anima(ora) {
+      const dt = Math.min(3, Math.max(0.1, (ora - ultimo) / (1000 / 60)));
+      ultimo = ora;
+      tempo += dt;
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+
+      for (const p of libere) { p.passo(tempo, dt); p.disegna(); }
+
+      // formanti: una molla le porta al loro punto, il puntatore le scompiglia
+      const mollaFreno = Math.pow(0.85, dt);
+      const liberoFreno = Math.pow(0.965, dt);
+      const versoAlfa = 1 - Math.pow(0.9, dt);
+      // l'occhio di Vision guarda il puntatore: iride e pupilla si spostano dentro la mandorla
+      let metaX = 0, metaY = 0;
+      if (occhio && puntatore.attivo) {
+        const dx = puntatore.x - occhio.x, dy = puntatore.y - occhio.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const quanto = Math.min(1, d / (occhio.S * 1.2));
+        metaX = (dx / d) * quanto * occhio.S * 0.25;
+        metaY = (dy / d) * quanto * occhio.S * 0.085;
+      }
+      const versoSguardo = 1 - Math.pow(0.88, dt);
+      sguardoX += (metaX - sguardoX) * versoSguardo;
+      sguardoY += (metaY - sguardoY) * versoSguardo;
+
+      ctx.beginPath();
+      for (const p of formanti) {
+        if (!p.legata) {
+          if (p.alfa < 0.01) { p.alfa = 0; continue; }
+        } else if (p.inArrivo) {
+          p.attesa -= dt;
+          if (p.attesa <= 0) { p.tx = p.nx; p.ty = p.ny; p.inArrivo = false; }
+        }
+        // chi è di troppo si spegne piano, mentre raggiunge la figura
+        p.alfa += (p.alfaMeta - p.alfa) * (p.spegni ? versoAlfa * 0.35 : versoAlfa);
+        if (p.spegni && p.alfa < 0.01) { p.legata = false; p.spegni = false; p.alfa = 0; continue; }
+
+        if (p.legata) {
+          let ox = Math.sin(tempo * 0.02 + p.fase) * 0.5;
+          let oy = Math.cos(tempo * 0.017 + p.fase * 1.3) * 0.5;
+          if (p.iride && occhio && !p.inArrivo) { ox += sguardoX; oy += sguardoY; }
+          p.vx += (p.tx + ox - p.x) * 0.03 * dt;
+          p.vy += (p.ty + oy - p.y) * 0.03 * dt;
+          p.vx *= mollaFreno;
+          p.vy *= mollaFreno;
+        } else {
+          p.vx *= liberoFreno;
+          p.vy *= liberoFreno;
+        }
+
+        if (puntatore.attivo) {
+          const dx = puntatore.x - p.x, dy = puntatore.y - p.y;
+          const d2 = dx * dx + dy * dy, r = 110;
+          if (d2 < r * r) {
+            const d = Math.sqrt(d2) || 1;
+            const f = (1 - d / r) * 1.5 * dt;
+            p.vx += (-dx / d) * f * 0.6 + (-dy / d) * f * 0.5;
+            p.vy += (-dy / d) * f * 0.6 + (dx / d) * f * 0.5;
+          }
+        }
+
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+
+        const v2 = p.vx * p.vx + p.vy * p.vy;
+        if (v2 > 1.5) {
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - p.vx * 2.6, p.y - p.vy * 2.6);
+        }
+        // nella home il pallino sbianca via via che si avvicina al suo posto nel logo; altrove torna indaco
+        let versoBianco = 0;
+        if (corrente === 0 && p.legata && !p.inArrivo) {
+          const ddx = p.tx - p.x, ddy = p.ty - p.y;
+          versoBianco = Math.max(0, 1 - Math.sqrt(ddx * ddx + ddy * ddy) / 90);
+        }
+        p.bianco += (versoBianco - p.bianco) * (1 - Math.pow(versoBianco > p.bianco ? 0.972 : 0.9, dt));
+
+        const r = p.raggio * alone;
+        if (p.bianco < 0.99) {
+          ctx.globalAlpha = p.alfa * (1 - p.bianco);
+          ctx.drawImage(pallino, p.x - r, p.y - r, r * 2, r * 2);
+        }
+        if (p.bianco > 0.01) {
+          ctx.globalAlpha = p.alfa * p.bianco;
+          ctx.drawImage(pallinoBianco, p.x - r, p.y - r, r * 2, r * 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(124,96,255,0.2)";
+      ctx.stroke();
+
+      if (puntatore.attivo) {
+        const agio = 1 - Math.pow(0.85, dt);
+        auraX += (puntatore.x - auraX) * agio;
+        auraY += (puntatore.y - auraY) * agio;
+        aura.style.transform = `translate3d(${auraX}px, ${auraY}px, 0)`;
+      }
+
+      requestAnimationFrame(anima);
+    }
+    requestAnimationFrame(anima);
+  </script>
+</body>
+</html>
