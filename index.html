@@ -517,7 +517,7 @@
     for (let i = 0; i < 70; i++) libere.push(new Libera());
 
     // ---------------------------------------------------------------- particelle formanti
-    const MAX_FORMANTI = 3400;
+    const MAX_FORMANTI = 4400;
     const formanti = [];
     for (let i = 0; i < MAX_FORMANTI; i++) {
       formanti.push({
@@ -697,8 +697,123 @@
     let timerBianco = 0;
     let occhio = null;              // centro e misura dell'occhio di Vision, quando è in scena
     let sguardoX = 0, sguardoY = 0; // di quanto iride e pupilla sono spostate verso il puntatore
+
+    // Le due frasi della home, sotto il logo: si alternano, sempre fatte di pallini indaco.
+    const FRASI = ["Thought by Humans", "Powered by AI"];
+    let fraseIndice = 0;
+
+    // I punti della frase corrente, a metà fra il logo e l'invito a scorrere.
+    function puntiFrase() {
+      const r = logoHero.getBoundingClientRect();
+      const su = r.top + r.height * 0.88;     // sotto la scritta OPHIM: il file del logo ha un po' di margine
+      const giu = H - 84;                      // sopra «Scorri»
+      const spazio = giu - su;
+      if (!r.width || spazio < 40) return [];
+
+      bozza.width = W;
+      bozza.height = H;
+      b.clearRect(0, 0, W, H);
+      b.fillStyle = "#fff";
+      const testo = FRASI[fraseIndice];
+      const fonte = (c) => `600 ${c}px "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif`;
+      let corpo = Math.min(38, W * 0.062, spazio * 0.5);
+      b.font = fonte(corpo);
+      const larga = larghezzaRiga(testo, corpo, corpo * 0.1);
+      if (larga > W * 0.86) corpo *= (W * 0.86) / larga;
+      b.font = fonte(corpo);
+      b.textBaseline = "middle";
+      const tra = corpo * 0.1;
+      let x = W / 2 - larghezzaRiga(testo, corpo, tra) / 2;
+      for (const ch of testo) {
+        b.fillText(ch, x, su + spazio / 2);
+        x += b.measureText(ch).width + tra;
+      }
+
+      let dati;
+      try {
+        dati = b.getImageData(0, 0, W, H).data;
+      } catch (e) {
+        return [];
+      }
+      const passo = 1.8;                       // lo stesso del logo: nella home l'alone dei pallini è unico
+      const punti = [];
+      const y0 = Math.max(0, su | 0), y1 = Math.min(H, giu | 0);
+      for (let py = y0 + passo / 2; py < y1; py += passo) {
+        for (let px = passo / 2; px < W; px += passo) {
+          if (dati[((py | 0) * W + (px | 0)) * 4 + 3] > 128) punti.push({ x: px, y: py });
+        }
+      }
+      for (let i = punti.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [punti[i], punti[j]] = [punti[j], punti[i]];
+      }
+      if (punti.length > 1500) punti.length = 1500;
+      return punti;
+    }
+
+    // Compone la frase: riusa i pallini della frase precedente, poi quelli rimasti di troppo dalla scena
+    // lasciata, e solo alla fine ne accende di nuovi. Quelli che avanzano confluiscono e si spengono.
+    function componiFrase(sparse) {
+      const punti = puntiFrase();
+      const vecchie = formanti.filter((p) => p.frase && p.legata && !p.spegni);
+      const uscenti = formanti.filter((p) => p.legata && p.spegni);
+      const spente = formanti.filter((p) => !p.legata);
+      const serbatoio = vecchie.concat(uscenti, spente);
+      const fonti = vecchie.concat(uscenti);
+
+      const parti = (p) => {
+        if (motoRidotto) {
+          p.x = p.tx = p.nx; p.y = p.ty = p.ny; p.vx = p.vy = 0;
+          p.inArrivo = false;
+        } else {
+          p.inArrivo = true;
+          p.attesa = sparse ? 70 + Math.random() * 60 : Math.random() * 22;   // all'ingresso arriva dopo il logo
+        }
+      };
+
+      let usate = 0;
+      for (let i = 0; i < punti.length && usate < serbatoio.length; i++, usate++) {
+        const p = serbatoio[usate];
+        if (!p.legata) {
+          const madre = !sparse && fonti.length ? fonti[(Math.random() * fonti.length) | 0] : null;
+          if (madre) {
+            p.x = madre.x; p.y = madre.y; p.vx = madre.vx; p.vy = madre.vy;
+          } else {
+            p.x = Math.random() * W; p.y = Math.random() * H; p.vx = p.vy = 0;
+          }
+          p.tx = p.x; p.ty = p.y;
+          p.alfa = 0;
+        }
+        p.legata = true;
+        p.spegni = false;
+        p.frase = true;
+        p.iride = false;
+        p.nx = punti[i].x;
+        p.ny = punti[i].y;
+        p.alfaMeta = 0.6 + Math.random() * 0.4;
+        parti(p);
+      }
+      for (let j = usate; j < vecchie.length; j++) {
+        const p = vecchie[j];
+        if (punti.length) {
+          const q = punti[(Math.random() * punti.length) | 0];
+          p.nx = q.x; p.ny = q.y;
+          parti(p);
+        }
+        p.spegni = true;
+        p.alfaMeta = 0;
+      }
+    }
+
+    setInterval(() => {
+      if (corrente !== 0 || inCambio || document.hidden) return;
+      fraseIndice = (fraseIndice + 1) % FRASI.length;
+      componiFrase(false);
+    }, 4600);
+
     function componi(indice, sparse) {
       const { punti, alto, passo, occhio: occhioNuovo } = disponi(indice);
+      for (const p of formanti) p.frase = false;
       occhio = occhioNuovo || null;
       alone =Math.max(2.2, passo * 1.05);   // pallini più fitti hanno un alone più piccolo, così la figura resta leggibile
       const copia = sezioni[indice].querySelector(".copia");
@@ -749,11 +864,12 @@
       // nella home i pallini compongono il logo, poi il logo bianco prende il loro posto
       clearTimeout(timerBianco);
       if (indice === 0) {
+        componiFrase(sparse);
         const giaBianco = hero.classList.contains("bianco");
         const sbianca = () => {
           if (corrente !== 0) return;
           hero.classList.add("bianco");
-          for (const p of formanti) if (p.legata) p.alfaMeta = 0;
+          for (const p of formanti) if (p.legata && !p.frase) p.alfaMeta = 0;
         };
         if (!punti.length || motoRidotto || giaBianco) sbianca();
         else timerBianco = setTimeout(sbianca, sparse ? 4200 : 3300);
@@ -907,7 +1023,7 @@
         }
         // chi è di troppo si spegne piano, mentre raggiunge la figura
         p.alfa += (p.alfaMeta - p.alfa) * (p.spegni ? versoAlfa * 0.35 : versoAlfa);
-        if (p.spegni && p.alfa < 0.01) { p.legata = false; p.spegni = false; p.alfa = 0; continue; }
+        if (p.spegni && p.alfa < 0.01) { p.legata = false; p.spegni = false; p.frase = false; p.alfa = 0; continue; }
 
         if (p.legata) {
           let ox = Math.sin(tempo * 0.02 + p.fase) * 0.5;
@@ -943,7 +1059,7 @@
         }
         // nella home il pallino sbianca via via che si avvicina al suo posto nel logo; altrove torna indaco
         let versoBianco = 0;
-        if (corrente === 0 && p.legata && !p.inArrivo) {
+        if (corrente === 0 && p.legata && !p.inArrivo && !p.frase) {
           const ddx = p.tx - p.x, ddy = p.ty - p.y;
           versoBianco = Math.max(0, 1 - Math.sqrt(ddx * ddx + ddy * ddy) / 90);
         }
