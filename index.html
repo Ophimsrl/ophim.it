@@ -759,7 +759,9 @@
       const uscenti = formanti.filter((p) => p.legata && p.spegni);
       const spente = formanti.filter((p) => !p.legata);
       const serbatoio = vecchie.concat(uscenti, spente);
-      const fonti = vecchie.concat(uscenti);
+      let fonti = vecchie.concat(uscenti);
+      // la prima frase nasce dai pallini del logo, che se ne staccano
+      if (!fonti.length) fonti = formanti.filter((p) => p.legata && !p.frase);
 
       const parti = (p) => {
         if (motoRidotto) {
@@ -805,11 +807,33 @@
       }
     }
 
-    setInterval(() => {
-      if (corrente !== 0 || inCambio || document.hidden) return;
-      fraseIndice = (fraseIndice + 1) % FRASI.length;
-      componiFrase(false);
-    }, 4600);
+    // Tempi delle frasi: la prima compare solo quando il logo è diventato bianco; ogni frase resta
+    // leggibile per alcuni secondi prima che i pallini si riordinino nella successiva.
+    const PAUSA_DOPO_LOGO = 700;
+    const DURATA_FRASE = 6000;     // circa un secondo per comporsi, il resto per leggerla
+    let timerFrase = 0;
+
+    function avviaFrasi(subito) {
+      clearTimeout(timerFrase);
+      fraseIndice = 0;
+      const prima = () => {
+        if (corrente !== 0) return;
+        componiFrase(false);
+        prossimaFrase(DURATA_FRASE);
+      };
+      if (subito) prima(); else timerFrase = setTimeout(prima, PAUSA_DOPO_LOGO);
+    }
+
+    function prossimaFrase(tra) {
+      clearTimeout(timerFrase);
+      timerFrase = setTimeout(() => {
+        if (corrente !== 0) return;
+        if (inCambio || document.hidden) { prossimaFrase(800); return; }
+        fraseIndice = (fraseIndice + 1) % FRASI.length;
+        componiFrase(false);
+        prossimaFrase(DURATA_FRASE);
+      }, tra);
+    }
 
     function componi(indice, sparse) {
       const { punti, alto, passo, occhio: occhioNuovo } = disponi(indice);
@@ -863,12 +887,13 @@
 
       // nella home i pallini compongono il logo, poi il logo bianco prende il loro posto
       clearTimeout(timerBianco);
+      clearTimeout(timerFrase);
       if (indice === 0) {
-        componiFrase(sparse);
         const giaBianco = hero.classList.contains("bianco");
         const sbianca = () => {
           if (corrente !== 0) return;
           hero.classList.add("bianco");
+          avviaFrasi(giaBianco);   // la frase parte solo adesso, a logo composto
           for (const p of formanti) if (p.legata && !p.frase) p.alfaMeta = 0;
         };
         if (!punti.length || motoRidotto || giaBianco) sbianca();
